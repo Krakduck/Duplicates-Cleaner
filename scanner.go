@@ -17,7 +17,7 @@ type File struct {
 
 func scan() ([]File, error) {
 	ListFile := []File{}
-	path := "Z:\\айфоша" //  "Z:\\айфоша\\DCIM"  "C:\\Users\\Роман\\Desktop\\егэ\\русский"  "C:\\Users\\Роман\\Desktop\\Volume_1 (192.168.1.77) - Ярлык.lnk"
+	path := "Z:\\айфоша\\новый год юля" //  "Z:\\айфоша\\DCIM"  "C:\\Users\\Роман\\Desktop\\егэ\\русский"  "C:\\Users\\Роман\\Desktop\\Volume_1 (192.168.1.77) - Ярлык.lnk"   "Z:\\айфоша\\новый год юля"
 	err := filepath.WalkDir(path, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err

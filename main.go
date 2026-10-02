@@ -1,29 +1,57 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+	"time"
+)
 
 func main() {
+	start := time.Now()
 	list, err := scan()
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	hashMap := make(map[string][]File)
 	FileSortToWeight := PrepareToHash(list)
 
-	for size, value := range FileSortToWeight { // value здесь лишь КОПИЯ среза из карты
-		if len(value) > 1 {
-			for i, file := range value { // можно написать _,file, а можно просто i(index), но тогда нужно будет обращаться value[i], а не file
-				hash, err := CalculateHash(file.Path)
-				if err != nil {
-					fmt.Println(err)
-					continue
-				}
-				FileSortToWeight[size][i].Hash = hash // если бы мы написали file.Hash = hash, то м ыбы поменяли поле у КОПИИ среза, а так мы обращаемся к нему напрямую
-				hashMap[hash] = append(hashMap[hash], file)
-			}
+	//кандидаты на хеширование
+	var candidates []File
+	for _, files := range FileSortToWeight {
+		if len(files) > 1 {
+			candidates = append(candidates, files...) //... распаковывает один срез в другой. добавляет элементы массива по одному, ибо список не может принять сразу весь список файлов
 		}
 	}
+
+	// 2. Создаем каналы связи. (Буфер len(candidates) нужен, чтобы отправка не блокировала главный поток)
+	jobs := make(chan File, len(candidates)) // chan - специальны тип данных для каналов. len(candidates) - размер буфера
+	results := make(chan File, len(candidates))
+
+	var wg sync.WaitGroup // 3. Создаем счетчик для контроля горутин
+
+	for i := 0; i < 8; i++ {
+		wg.Add(1) // Увеличиваем счетчик ждущих горутин
+		go worker(jobs, results, &wg)
+	}
+
+	// 5. Отправляем все файлы в канал задач
+	for _, file := range candidates {
+		jobs <- file // Закидываем файл в канал
+	}
+	close(jobs) // Сигнализируем воркерам: задачи закончились!
+
+	// 6. Запускаем отдельный фоновый "наблюдатель", который закроет results
+	go func() {
+		wg.Wait()      // Ждем, пока ВСЕ 8 воркеров сделают wg.Done().
+		close(results) // Закрываем канал результатов
+	}()
+
+	// 7. Сбор результатов обратно в hashMap
+	hashMap := make(map[string][]File)
+	for file := range results { //берет элементы из канала
+		hashMap[file.Hash] = append(hashMap[file.Hash], file)
+	}
+
 	duplicates := []DuplicateGroup{}
 	for hash, files := range hashMap {
 		if len(files) > 1 {
@@ -40,4 +68,5 @@ func main() {
 			fmt.Println(file.Path)
 		}
 	}
+	fmt.Println(time.Since(start))
 }
