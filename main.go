@@ -1,17 +1,56 @@
 package main
 
 import (
+	"bufio"
+	"flag"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 )
 
 func main() {
-	start := time.Now()
-	list, err := scan()
-	if err != nil {
-		fmt.Println(err)
+	path := flag.String("path", "", "папка для поиска дубликатов")
+	flag.Parse()
+
+	interactive := false
+	correct := false
+	list := []File{}
+	for i := 0; correct != true; i++ {
+		if *path == "" {
+			interactive = true
+			reader := bufio.NewReader(os.Stdin)
+			fmt.Print("Введите путь к папке без кавычек: ")
+			input, err := reader.ReadString('\n')
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Ошибка чтения:", err)
+				//os.Exit(1) //тоже самое, что return, но безопаснее для скриптов
+			}
+			*path = strings.TrimSpace(input) //обрезание переноса строки
+		} else {
+			correct = true
+		}
+
+		if *path == "" {
+			fmt.Fprintln(os.Stderr, "Путь не задан. Использование: dupefinder -path <папка>")
+			bufio.NewReader(os.Stdin).ReadString('\n') //пауза перед закрытием. новый ридер для надежности
+			//os.Exit(1)
+		} else {
+			correct = true
+		}
+		var err error
+		list, err = scan(*path)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Ошибка:", err)
+			bufio.NewReader(os.Stdin).ReadString('\n') //пауза перед закрытием. новый ридер для надежности
+			os.Exit(1)
+		} else {
+			correct = true
+		}
 	}
+
+	start1 := time.Now()
 
 	FileSortToWeight := PrepareToHash(list)
 
@@ -62,11 +101,19 @@ func main() {
 			duplicates = append(duplicates, duplicate)
 		}
 	}
+
 	for _, duplicate := range duplicates {
 		a := duplicate.Files
 		for _, file := range a {
 			fmt.Println(file.Path)
 		}
 	}
-	fmt.Println(time.Since(start))
+	fmt.Println("total amount fileP:", len(list))
+	fmt.Println("total amount duplicate:", len(duplicates))
+	fmt.Println("duration:", time.Since(start1))
+
+	if interactive {
+		fmt.Print("\nНажмите Enter для выхода...")
+		bufio.NewReader(os.Stdin).ReadString('\n') //пауза перед закрытием. новый ридер для надежности
+	}
 }

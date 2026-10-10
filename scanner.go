@@ -15,9 +15,10 @@ type File struct {
 	Hash string
 }
 
-func scan() ([]File, error) {
-	ListFile := []File{}
-	path := "Z:\\айфоша\\новый год юля" //  "Z:\\айфоша\\DCIM"  "C:\\Users\\Роман\\Desktop\\егэ\\русский"  "C:\\Users\\Роман\\Desktop\\Volume_1 (192.168.1.77) - Ярлык.lnk"   "Z:\\айфоша\\новый год юля"
+func scan(path string) ([]File, error) {
+	ListFile := []File{} //"C:\Users\Роман\Desktop\егэ\русский"
+	//  "Z:\\айфоша\\DCIM"  "C:\\Users\\Роман\\Desktop\\егэ\\русский"  "C:\\Users\\Роман\\Desktop\\Volume_1 (192.168.1.77) - Ярлык.lnk"   "Z:\\1С+Ключи Пользователей"
+
 	err := filepath.WalkDir(path, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
