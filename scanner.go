@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 )
 
@@ -15,13 +17,19 @@ type File struct {
 	Hash string
 }
 
-func scan(path string) ([]File, error) {
-	ListFile := []File{} //"C:\Users\Роман\Desktop\егэ\русский"
-	//  "Z:\\айфоша\\DCIM"  "C:\\Users\\Роман\\Desktop\\егэ\\русский"  "C:\\Users\\Роман\\Desktop\\Volume_1 (192.168.1.77) - Ярлык.lnk"   "Z:\\1С+Ключи Пользователей"
-
+func scan(path string, excl string) ([]File, error) {
+	var ListFile []File
+	exclude := strings.Split(excl, ",")
 	err := filepath.WalkDir(path, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+
+		if slices.Contains(exclude, path) {
+			if d.IsDir() {
+				return filepath.SkipDir // пропустить всю папку и её содержимое
+			}
+			return nil // пропустить файл, идти дальше
 		}
 
 		info, err := d.Info()

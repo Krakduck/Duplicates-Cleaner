@@ -11,42 +11,51 @@ import (
 )
 
 func main() {
-	path := flag.String("path", "", "папка для поиска дубликатов")
-	flag.Parse()
+	// можно написать
+	//var path string
+	//flag.StringVar(&path,"path", "", "папка для поиска дубликатов")
+	//но тогда path не будет указателем и его не нужно будет разыменовывать через * и можно указать несколько флагов для одной переменной
 
+	path := flag.String("path", "", "папка для поиска дубликатов")
+	exclude := flag.String("exclude", "", "исключение") //проблема заключается в том, что "-" в пути интерпритируется как начало флана
+	flag.Parse()
+	//fmt.Println(strings.Split(*exclude, ",")[0], "\n")
+	//fmt.Println(strings.Split(*exclude, ",")[1], "\n")
 	interactive := false
-	correct := false
-	list := []File{}
-	for i := 0; correct != true; i++ {
-		if *path == "" {
-			interactive = true
-			reader := bufio.NewReader(os.Stdin)
-			fmt.Print("Введите путь к папке без кавычек: ")
+
+	var list []File //list := []File{} - выделяет память при создании, а var list []File создает nill-срез
+	if *path == "" {
+		interactive = true
+		reader := bufio.NewReader(os.Stdin)
+		for {
+			fmt.Print("\nВведите путь к папке без кавычек: ")
 			input, err := reader.ReadString('\n')
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Ошибка чтения:", err)
-				//os.Exit(1) //тоже самое, что return, но безопаснее для скриптов
+				fmt.Fprintln(os.Stderr, "\nОшибка чтения:", err)
+				continue
 			}
 			*path = strings.TrimSpace(input) //обрезание переноса строки
-		} else {
-			correct = true
-		}
 
-		if *path == "" {
-			fmt.Fprintln(os.Stderr, "Путь не задан. Использование: dupefinder -path <папка>")
-			bufio.NewReader(os.Stdin).ReadString('\n') //пауза перед закрытием. новый ридер для надежности
-			//os.Exit(1)
-		} else {
-			correct = true
+			fmt.Print("\nВведите пути, которые надо исключить через запятую без ковычек: ")
+			input, err = reader.ReadString('\n')
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "\nОшибка чтения:", err)
+				continue
+			}
+			*exclude = strings.TrimSpace(input)
+
+			list, err = scan(*path, *exclude)
+			if err == nil {
+				break
+			}
+			fmt.Fprintln(os.Stderr, "\nОшибка:", err)
 		}
+	} else {
 		var err error
-		list, err = scan(*path)
+		list, err = scan(*path, *exclude)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Ошибка:", err)
-			bufio.NewReader(os.Stdin).ReadString('\n') //пауза перед закрытием. новый ридер для надежности
+			fmt.Fprintln(os.Stderr, "\nОшибка:", err)
 			os.Exit(1)
-		} else {
-			correct = true
 		}
 	}
 
@@ -91,25 +100,29 @@ func main() {
 		hashMap[file.Hash] = append(hashMap[file.Hash], file)
 	}
 
-	duplicates := []DuplicateGroup{}
+	var duplicates []DuplicateGroup
 	for hash, files := range hashMap {
 		if len(files) > 1 {
 			duplicate := DuplicateGroup{
 				Hash:  hash,
-				Files: files,
+				Files: files, //срез
 			}
 			duplicates = append(duplicates, duplicate)
 		}
 	}
 
-	for _, duplicate := range duplicates {
+	for index, duplicate := range duplicates {
+		var totalSize int64
 		a := duplicate.Files
 		for _, file := range a {
-			fmt.Println(file.Path)
+			fmt.Println(index, file.Path)
+			totalSize += file.Size
 		}
+		fmt.Println("эта группа занимает", totalSize/1024/1024/1024, "GB = ", totalSize/1024/1024, "MB = ", totalSize/1024, "KB")
+		fmt.Println("\n")
 	}
 	fmt.Println("total amount fileP:", len(list))
-	fmt.Println("total amount duplicate:", len(duplicates))
+	fmt.Println("total amount duplicate:", len(duplicates), "файла/-ов имеют дубликаты")
 	fmt.Println("duration:", time.Since(start1))
 
 	if interactive {
