@@ -2,66 +2,27 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"time"
 )
 
 func main() {
-	// можно написать
-	//var path string
-	//flag.StringVar(&path,"path", "", "папка для поиска дубликатов")
-	//но тогда path не будет указателем и его не нужно будет разыменовывать через * и можно указать несколько флагов для одной переменной
 
-	path := flag.String("path", "", "папка для поиска дубликатов")
-	exclude := flag.String("exclude", "", "исключение") //проблема заключается в том, что "-" в пути интерпритируется как начало флана
-	flag.Parse()
-	//fmt.Println(strings.Split(*exclude, ",")[0], "\n")
-	//fmt.Println(strings.Split(*exclude, ",")[1], "\n")
-	interactive := false
+	//C:\Users\Роман\Desktop\егэ\русский
+	//C:\Users\Роман\Desktop\егэ\русский\РУ-11-ЕГЭ-2027-ДЕМО.pdf,C:\Users\Роман\Desktop\егэ\русский\РУ-11-ЕГЭ-2027-ДЕМО — копия.pdf
+	//-path C:\Users\Роман\Desktop\егэ\русский -exclude "C:\Users\Роман\Desktop\егэ\русский\РУ-11-ЕГЭ-2027-ДЕМО.pdf,C:\Users\Роман\Desktop\егэ\русский\РУ-11-ЕГЭ-2027-ДЕМО — копия.pdf"
 
-	var list []File //list := []File{} - выделяет память при создании, а var list []File создает nill-срез
-	if *path == "" {
-		interactive = true
-		reader := bufio.NewReader(os.Stdin)
-		for {
-			fmt.Print("\nВведите путь к папке без кавычек: ")
-			input, err := reader.ReadString('\n')
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "\nОшибка чтения:", err)
-				continue
-			}
-			*path = strings.TrimSpace(input) //обрезание переноса строки
-
-			fmt.Print("\nВведите пути, которые надо исключить через запятую без ковычек: ")
-			input, err = reader.ReadString('\n')
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "\nОшибка чтения:", err)
-				continue
-			}
-			*exclude = strings.TrimSpace(input)
-
-			list, err = scan(*path, *exclude)
-			if err == nil {
-				break
-			}
-			fmt.Fprintln(os.Stderr, "\nОшибка:", err)
-		}
-	} else {
-		var err error
-		list, err = scan(*path, *exclude)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "\nОшибка:", err)
-			os.Exit(1)
-		}
+	opts, err := parseOptions()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "\nОшибка:", err)
+		os.Exit(1)
 	}
 
 	start1 := time.Now()
 
-	FileSortToWeight := PrepareToHash(list)
+	FileSortToWeight := PrepareToHash(opts.Files)
 
 	//кандидаты на хеширование
 	var candidates []File
@@ -121,12 +82,20 @@ func main() {
 		fmt.Println("эта группа занимает", totalSize/1024/1024/1024, "GB = ", totalSize/1024/1024, "MB = ", totalSize/1024, "KB")
 		fmt.Println("\n")
 	}
-	fmt.Println("total amount fileP:", len(list))
+	fmt.Println("total amount fileP:", len(opts.Files))
 	fmt.Println("total amount duplicate:", len(duplicates), "файла/-ов имеют дубликаты")
 	fmt.Println("duration:", time.Since(start1))
 
-	if interactive {
-		fmt.Print("\nНажмите Enter для выхода...")
-		bufio.NewReader(os.Stdin).ReadString('\n') //пауза перед закрытием. новый ридер для надежности
+	// удаление по флагу
+	if opts.AutoDelete {
+		removeAll(duplicates)
 	}
+
+	// интерактивное подтверждение
+	if opts.Interactive {
+		askAndDelete(duplicates)
+		fmt.Print("\nНажмите Enter для выхода...")
+		bufio.NewReader(os.Stdin).ReadString('\n')
+	}
+
 }
