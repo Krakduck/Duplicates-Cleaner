@@ -41,7 +41,7 @@ cd dups-cleaner
 
 2. Скомпилируйте проект в бинарный файл:
 ```
-go build 
+go build -o dups_cleaner.exe .
 ```
 
 
