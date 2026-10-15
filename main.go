@@ -61,21 +61,12 @@ func main() {
 		hashMap[file.Hash] = append(hashMap[file.Hash], file)
 	}
 
-	var duplicates []DuplicateGroup
-	for hash, files := range hashMap {
-		if len(files) > 1 {
-			duplicate := DuplicateGroup{
-				Hash:  hash,
-				Files: files, //срез
-			}
-			duplicates = append(duplicates, duplicate)
-		}
-	}
-
-	for index, duplicate := range duplicates {
+	index := 0
+	for _, value := range hashMap { //value - []File
+		index++
 		var totalSize int64
-		a := duplicate.Files
-		for _, file := range a {
+		duplicates := value
+		for _, file := range duplicates[1:] {
 			fmt.Println(index, file.Path)
 			totalSize += file.Size
 		}
@@ -83,19 +74,18 @@ func main() {
 		fmt.Println("\n")
 	}
 	fmt.Println("total amount fileP:", len(opts.Files))
-	fmt.Println("total amount duplicate:", len(duplicates), "файла/-ов имеют дубликаты")
+	fmt.Println("total amount duplicate:", len(hashMap), "файла/-ов имеют дубликаты")
 	fmt.Println("duration:", time.Since(start1))
 
 	// удаление по флагу
 	if opts.AutoDelete {
-		removeAll(duplicates)
+		removeAll(hashMap)
 	}
 
 	// интерактивное подтверждение
 	if opts.Interactive {
-		askAndDelete(duplicates)
+		askAndDelete(hashMap)
 		fmt.Print("\nНажмите Enter для выхода...")
 		bufio.NewReader(os.Stdin).ReadString('\n')
 	}
-
 }

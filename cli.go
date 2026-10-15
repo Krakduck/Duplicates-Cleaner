@@ -79,18 +79,20 @@ func parseOptions() (*Options, error) {
 }
 
 // removeAll переносит все дубликаты в корзину
-func removeAll(duplicates []DuplicateGroup) {
-	for _, duplicate := range duplicates {
-		for _, file := range duplicate.Files {
-			if err := deleteFile(file.Path); err != nil {
-				fmt.Println(err)
+func removeAll(duplicates map[string][]File) {
+	for _, value := range duplicates { //value - []File
+		duplicate := value
+		for _, file := range duplicate[1:] {
+			err := deleteFile(file.Path)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
 			}
 		}
 	}
 }
 
 // askAndDelete спрашивает подтверждение и удаляет
-func askAndDelete(duplicates []DuplicateGroup) {
+func askAndDelete(duplicates map[string][]File) {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Println("\nЖелаете удалить дубликаты? (yes/no)(y/n)")
@@ -108,8 +110,24 @@ func askAndDelete(duplicates []DuplicateGroup) {
 }
 
 func deleteFile(path string) error {
-	cmd := exec.Command("powershell", "-NoProfile", "-Command",
-		`try { Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($args[0],'OnlyErrorDialogs','SendToRecycleBin'); exit 0 } catch { Write-Host $_.Exception.Message; exit 1 }`,
-		path)
-	return cmd.Run()
+	// Безопасно экранируем путь для PowerShell
+	psCommand := fmt.Sprintf(`
+        try {
+            Add-Type -AssemblyName Microsoft.VisualBasic;
+            [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile('%s', 'OnlyErrorDialogs', 'SendToRecycleBin');
+            exit 0;
+        } catch {
+            Write-Error $_.Exception.Message;
+            exit 1;
+        }
+    `, path)
+
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", psCommand)
+
+	// Получаем подробный вывод ошибки, если она случится
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("ошибка удаления (%v): %s", err, strings.TrimSpace(string(output)))
+	}
+	return nil
 }
