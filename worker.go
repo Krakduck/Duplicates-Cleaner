@@ -4,10 +4,10 @@ import "sync"
 
 // worker — это функция одного рабочего
 func worker(jobs <-chan File, results chan<- File, wg *sync.WaitGroup) {
-	// 💡 defer wg.Done() автоматически выполнится, когда воркер завершит работу
+	//  defer wg.Done() автоматически выполнится, когда воркер завершит работу
 	defer wg.Done()
 
-	// 💡 Этот цикл берет файлы из канала по одному.
+	//  Этот цикл берет файлы из канала по одному.
 	// Он сам остановится, когда канал jobs будет закрыт (close(jobs))
 	for file := range jobs {
 		hash, err := CalculateHash(file.Path)
